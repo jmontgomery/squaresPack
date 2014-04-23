@@ -1,0 +1,507 @@
+library(foreign)#
+setwd("/Users/jacobmontgomery")#
+courts <- read.dta("outcomelong.dta")#
+glm(stevact~stev, data=courts, family="binomial")#
+glm(stevact~stevmod, data=courts, family="binomial")#
+#
+glm(oconact~ocon, data=courts, family="binomial")#
+glm(oconact~oconmod, data=courts, family="binomial")#
+nc <- matrix(NA, nrow=612, ncol=6)#
+colnames(nc) <- c("name", "actual", "exp1", "exp2", "exp3", "mod")#
+#
+ids <- unique(courts$docket)#
+#
+for(i in 1:length(ids)){#
+courts[courts$docket==ids[i], "time"]<-c(1,2,3)#
+}#
+wide <- reshape(data=courts,#
+                 v.names=c("rehn", "stev", "scal", "kenn",#
+                   "thom", "gins", "brey", "ocon", "sout", "expert"),#
+                   idvar="docket", direction="wide", timevar="number",#
+                  drop=c("votecse","survey","frstsur","idctbel",#
+                  "dvctbel","disagct","idpet","idres","idcoun","qualbrf",#
+                  "preced","dicta","othstat","txtcon","txtstat","txtreg",#
+                  "nontext","intrpth","pracons","plcyprf","ideolgy","pubopin",#
+                  "congres","execut","profbck","persbck","noamici","idamici",#
+                  "sgamic","howconf","case1","case2","case3","case4","chair",#
+                  "category","datedeg","otherdeg","datebar","sctclerk","sctterm1",#
+                  "sctjust1","sctterm2","sctjust2","yrsteach","yrspract"))#
+#
+j.names <- c("rehn", "stev", "scal", "kenn", "thom", "gins", "brey", "ocon", "sout")#
+#
+base <- wide[,c(1:8, 18:26, 36:40)]#
+#
+rehn <- wide[,c("rehnact", "rehnmod", "rehn.1", "rehn.2", "rehn.3", "expert.1", "expert.2", "expert.3")]#
+colnames(rehn) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+rehn <- cbind(rehn, base)#
+#
+stev <- wide[,c("stevact", "stevmod", "stev.1", "stev.2", "stev.3", "expert.1", "expert.2", "expert.3")]#
+colnames(stev) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+stev <- cbind(stev, base)#
+#
+scal <- wide[,c("scalact", "scalmod", "scal.1", "scal.2", "scal.3", "expert.1", "expert.2", "expert.3")]#
+colnames(scal) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+scal <- cbind(scal, base)#
+#
+kenn <- wide[,c("kenact", "kenmod", "kenn.1", "kenn.2", "kenn.3", "expert.1", "expert.2", "expert.3")]#
+colnames(kenn) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+kenn <- cbind(kenn, base)#
+#
+thom <- wide[,c("thomact", "thommod", "thom.1", "thom.2", "thom.3", "expert.1", "expert.2", "expert.3")]#
+colnames(thom) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+thom <- cbind(thom, base)#
+#
+gins <- wide[,c("ginact", "ginmod", "gins.1", "gins.2", "gins.3", "expert.1", "expert.2", "expert.3")]#
+colnames(gins) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+gins <- cbind(gins, base)#
+#
+brey <- wide[,c("bryact", "brymod", "brey.1", "brey.2", "brey.3", "expert.1", "expert.2", "expert.3")]#
+colnames(brey) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+brey <- cbind(brey, base)#
+#
+ocon <- wide[,c("oconact", "oconmod", "ocon.1", "ocon.2", "ocon.3", "expert.1", "expert.2", "expert.3")]#
+colnames(ocon) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+ocon <- cbind(ocon, base)#
+#
+sout <- wide[,c("soutact", "soutmod", "sout.1", "sout.2", "sout.3", "expert.1", "expert.2", "expert.3")]#
+colnames(sout) <- c("act","mod", "e1", "e2", "e3", "expert.1", "expert.2", "expert.3")#
+sout <- cbind(sout, base)#
+#
+final <- rbind(rehn, stev, scal, kenn, thom, gins, brey, ocon, sout)#
+final$just <- sort(rep(c(1:9), 68))#
+#
+glm(act~e1+e2+e3, data=final, family="binomial")#
+glm(act~mod, data=final, family="binomial")#
+#
+total <- num.exp <- rep(NA, 612)#
+for (i in 1:nrow(final)){#
+ total[i] <- sum(final$e1[i]+final$e2[i]+final$e3[i], na.rm=T)#
+ num.exp[i] <- sum(!is.na(c(final$e1[i], final$e2[i], final$e3[i])))#
+}#
+#
+final$exp.tot <- total/num.exp#
+#
+summary(glm(act~exp.tot+mod, data=final, family="binomial"))#
+summary(glm(act~exp.tot, data=final, family="binomial"))#
+summary(glm(act~mod, data=final, family="binomial"))#
+#########################################################
+#########################################################
+#
+#library(Ensemble.ICEWS)#
+library(EBMAforecast)#
+in.sample.docket <- unique(final$docket)[1:44]#
+out.sample.docket <- unique(final$docket)[45:68]#
+#
+final$in.samp <- 1#
+#
+for (i in out.sample.docket){#
+  final$in.samp[final$docket==i] <- 0#
+}#
+#
+final <- final[!is.na(final$act),]#
+#
+in.sample <- final[final$in.samp==1,]#
+out.sample <- final[final$in.samp==0,]#
+in.mod <- glm(act~mod, data=in.sample, family="binomial")#
+in.exp <- glm(act~exp.tot, data=in.sample, family="binomial")#
+## try this instead#
+#
+in.pred.mod <- in.sample$mod#
+in.pred.exp <- in.sample$exp.tot#
+#
+#in.pred.mod <- fitted(in.mod)#
+#in.pred.exp <- fitted(in.exp)#
+#
+out.pred.mod <- out.sample$mod#
+out.pred.exp <- out.sample$exp.tot#
+#
+#out.pred.mod <- predict(in.mod, newdata=out.sample, type="response")#
+#out.pred.exp <- predict(in.exp, newdata=out.sample, type="response")#
+#
+in.data <- cbind(in.pred.mod, in.pred.exp)#
+out.data <- cbind(out.pred.mod, out.pred.exp)#
+#
+in.data[in.data==1] <- .999#
+in.data[in.data==0] <- .001#
+#
+out.data[out.data==1] <- .999#
+out.data[out.data==0] <- .001#
+#
+colnames(in.data) <- colnames(out.data) <- c("Model", "Experts")#
+#
+y.in <- in.sample$act#
+y.out <- out.sample$act#
+#
+BMA.fit <- Ensemble.logit(y=y.in, pp.raw=in.data, tol=.0001, exp=4)#
+print.Ensemble.logit(BMA.fit)#
+plot.Ensemble.logit(BMA.fit)#
+#
+BMA.pred <- predict.Ensemble.logit(obj=BMA.fit, newdata=out.data, y.out=y.out)#
+print.Ensemble.logit(BMA.pred)#
+plot.Ensemble.logit(BMA.pred)
+library(separationplot)
+plot.Ensemble.logit(BMA.fit)
+?median
+?par
+?mtext
+?predict
+library(ensembleBMA)
+citation(ensembleBMA)
+citation(package="ensembleBMA")
+library(wnominate)
+install.packages("wnominate")
+library(wnominate)
+citation(wnominate)
+?citation
+citation(package="wnominate")
+install.packages("netork")
+install.packages("network")
+install.packages("sna")
+2+3
+library(Rcmdr)
+install.packages("Rcmdr")
+library(Rcmdr)
+asdfsd
+source("/Volumes/KINGSTON/SusieRScript.R")
+This line here is what you must change#
+# Put in adress for your file, or use R commander if gets tricky#
+# Use \\ instead of \#
+# I think to run commands in windows its ctrl-R#
+my.data <- read.csv("~/CodifiedData.csv") # Put file address here like: "C:\\My Documents\\Desktop\\CofifiedData.csv"#
+my.data$Race <- my.data$Race - 1#
+my.data$Gender <-  my.data$Gender-1#
+colnames(my.data)
+Judgment calls suck#
+# Total.Average.unweighted is the outcome, predicted by interver reatings and SES#
+summary(lm(Total.Average.Unweighted~Interviewer.Rating+SES, data=my.data))#
+summary(lm(Total..weignted.~Interviewer.Rating+SES, data=my.data))#
+# Not actually good at predicting student performance#
+summary(lm(EOCD~Interviewer.Rating+SES, data=my.data))#
+summary(lm(EOCD~Interviewer.Rating+SES, data=my.data))
+Can replace variable if want: #
+Regression.A1<- lm(EOCD ~ Total.Average.Unweighted, data=my.data)#
+summary(Regression.A1)#
+#
+# # Main results: Alternative expllantions are SES or other factors unaccounted.#
+Regression1 <- lm(EOCD ~ SES + School.Level + Total.Average.Unweighted + Race + Gender, data=my.data)#
+Regression2 <- lm(EOCD ~ SES + School.Level + Total..weignted. + Race + Gender, data=my.data)#
+summary(Regression1)#
+summary(Regression2)#
+#
+# Example script of using different varianles instead of total #
+Regression3 <- lm(EOCD~ SES + School.Level + Instruction, data=my.data)#
+Regression4 <- lm(EOCD ~ SES + School.Level + Management, data=my.data)#
+Regression5 <- lm(EOCD ~ SES + School.Level + Collaboration, data=my.data)#
+Regression6 <- lm(EOCD ~ SES + School.Level + Vision, data=my.data)#
+Regression7 <- lm(EOCD ~ SES + School.Level + Integrity, data=my.data)#
+summary(Regression3)#
+summary(Regression4)#
+summary(Regression5)#
+summary(Regression6)#
+summary(Regression7)#
+# How correlated is disabled/ non-disabled school-level scores?#
+cor.test(my.data$EOCD, my.data$EOCN)#
+# Could also re-do all of above replaceing EOCD with EOCN
+File for susie#
+#This line here is what you must change#
+# Put in adress for your file, or use R commander if gets tricky#
+# Use \\ instead of \#
+# I think to run commands in windows its ctrl-R#
+my.data <- read.csv("~/CodifiedData.csv") # Put file address here like: "C:\\My Documents\\Desktop\\CofifiedData.csv"#
+my.data$Race <- my.data$Race - 1#
+my.data$Gender <-  my.data$Gender-1#
+colnames(my.data)
+63 + 1.96*12/4
+63 - 1.96*12/4
+qnorm(.95)
+.791*(1-.791)
+.791*(1-.791)/60
+sqrt(791*(1-.791)/60)
+sqrt(.791*(1-.791)/60)
+(0.455 - 0.791)/0.52
+(0.455 - 0.791)/0.052
+sqrt(.52(.48)/1008)
+sqrt(.52*(.48)/1008)
+sqrt(.14*(1-.14)/1002)
+data(Titanic)
+str(Titanic)
+pt(.78, df=9, lower.talk=F)
+pt(.78, df=9, lower.tail=F)
+2*pt(.78, df=9, lower.tail=F)
+(.27*.73)/100
+(.27*.73)/sqrt(100)
+sqrt((.27*.73)/(100))
+?try
+2<-3/60
+3/60
+sd=3/sqrt(12)
+sd\
+sd
+166-1.363*sd
+sd
+.866*1.363
+166+1.796*sd
+166+1.796*.866
+166-1.363*.866
+5/(9/10 + 25/15)
+qt(1)
+qt(.99)
+qt(.99, df=24)
+qt(.98, df=24)
+?read.tab
+?read.csv
+?crplot
+??crplot
+library(EBMAforecast)
+?EBMAforecast
+library(forecastBMA)
+?forecast
+?par
+?read
+?read.txt
+?read.csv
+newdata<-read.delim(file="Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06 2.txt", header=FALSE, sep=",", quote="|")
+newdata<-read.delim(file="~/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v2.txt", header=FALSE, sep=",", quote="|")
+newdata<-read.delim(file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v2.txt", header=FALSE, sep=",", quote="|")
+head(newdata)
+?write.csv
+write.csv(newdata, file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv")
+newdata<-read.csv(file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", header=FALSE)
+head(newdata)
+colnames(newdata)
+newdata<-read.csv(file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", header=FALSE)#
+colnames(newdata)<-c("Cycle", "ID", "TransID", #
+					"CRPFilerid", "Recipcode", "Pacshort", #
+					"CRPRecipname", "Expcode", "Amount", "Date", #
+					"City", "State", "Zip", "CmtelD_EF", "Candid", #
+					"Type", "Descrip", "PG", #
+					"ElecOther", "EntType", "Source")
+head(newdata)
+newdata<-read.csv(file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", header=TRUE)#
+colnames(newdata)<-c("Cycle", "ID", "TransID", #
+					"CRPFilerid", "Recipcode", "Pacshort", #
+					"CRPRecipname", "Expcode", "Amount", "Date", #
+					"City", "State", "Zip", "CmtelD_EF", "Candid", #
+					"Type", "Descrip", "PG", #
+					"ElecOther", "EntType", "Source")
+head(newdata)
+?read.csv
+head(newdata[1,])
+head(newdata[,1])
+newdata<-newdata[,-1]
+colnames(newdata)<-c("Cycle", "ID", "TransID", #
+					"CRPFilerid", "Recipcode", "Pacshort", #
+					"CRPRecipname", "Expcode", "Amount", "Date", #
+					"City", "State", "Zip", "CmtelD_EF", "Candid", #
+					"Type", "Descrip", "PG", #
+					"ElecOther", "EntType", "Source")
+head(newdata)
+write.csv(newdata, file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv")
+dropper<-with(newdata, EntType="PTY")
+dropper<-with(newdata, EntType=="PTY")
+head(dropper)
+table(dropper)
+dropper<-rep(FALSE, length(newdata[,1]))
+dropper<-with(newdata, EntType=="PTY")
+table(dropper)
+dropper<-rep(FALSE, length(newdata[,1]))
+newdata<-read.csv(file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", header=TRUE)
+dim(newdata)
+newdata<-newdata[,-1] # This line gets rid of first column
+?write.csv
+head(newdata)
+olddata<-read.table("/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v2.txt", sep=",", quote="|")
+?read.table
+olddata<-read.table("/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v2.txt", sep=",", quote="|",fill=TRUE)
+dim(olddata)
+head(olddata)
+colnames(olddata)<-c("Cycle", "ID", "TransID", #
+					"CRPFilerid", "Recipcode", "Pacshort", #
+					"CRPRecipname", "Expcode", "Amount", "Date", #
+					"City", "State", "Zip", "CmtelD_EF", "Candid", #
+					"Type", "Descrip", "PG", #
+					"ElecOther", "EntType", "Source")
+write.csv(olddata, file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", row.names=FALSE)
+newdata<-read.csv(file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", header=TRUE)
+table(newdata$Cycle)
+which(newdata$Cycle!="2006")
+olddata<-read.table("/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v2.txt", sep=",", quote="|",fill=TRUE)#
+colnames(olddata)<-c("Cycle", "ID", "TransID", #
+					"CRPFilerid", "Recipcode", "Pacshort", #
+					"CRPRecipname", "Expcode", "Amount", "Date", #
+					"City", "State", "Zip", "CmtelD_EF", "Candid", #
+					"Type", "Descrip", "PG", #
+					"ElecOther", "EntType", "Source")#
+write.csv(olddata, file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", row.names=FALSE)#
+which(olddata$Cycle!="2006")
+dim(olddata)
+olddata<-read.table("/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v2.txt", sep=",", quote="|",fill=TRUE)#
+colnames(olddata)<-c("Cycle", "ID", "TransID", #
+					"CRPFilerid", "Recipcode", "Pacshort", #
+					"CRPRecipname", "Expcode", "Amount", "Date", #
+					"City", "State", "Zip", "CmtelD_EF", "Candid", #
+					"Type", "Descrip", "PG", #
+					"ElecOther", "EntType", "Source")#
+write.csv(olddata, file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", row.names=FALSE)#
+which(olddata$Cycle!="2006")
+dim(olddata)
+newdata<-read.csv(file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/expends06v3.csv", header=TRUE)
+Callie1<-with(newdata, EntType=="PTY" | EntType=="CCM") # I am dropping these because they indicate party committes or Candidate committee expenditures.#
+Callie2<-with(newdata,  Recipcode=="PI" | Recipcode="PB") # I am dropping these because this is  PAC not a candidate spending the money
+Callie1<-with(newdata, EntType=="PTY" | EntType=="CCM") # I am dropping these because they indicate party committes or Candidate committee expenditures.#
+Callie2<-with(newdata,  Recipcode=="PI" | Recipcode=="PB") # I am dropping these because this is  PAC not a candidate spending the money
+dropper<-Callie1==TRUE | Callie2 == TRUE
+table(dropper)
+colnames(newdata)
+head(newdata)
+Callie1<-with(newdata, EntType=="PTY" | EntType=="CCM") # I am dropping these because they indicate party committes or Candidate committee expenditures.#
+Callie2<-with(newdata,  Recipcode=="PI" | Recipcode=="PB") # I am dropping these because this is  PAC not a candidate spending the money#
+#
+Callie3<-with(newdata, Descrip="Office Supplies" | Descrip="Travel Expenses" | Descrip="TRAVEL EXPENSES")#
+# Run this code to see what you dropped.  You have to add new commands as you add new variables.#
+dropper<-Callie1==TRUE | Callie2 == TRUE |Callie3==TRUE#
+# Use this command to see how many are being dropped.  The numebr of "TRUE" values is the number being dropped#
+table(dropper)
+Callie3<-with(newdata, Descrip=="Office Supplies" | Descrip=="Travel Expenses" | Descrip=="TRAVEL EXPENSES")#
+# Getting rid of expenditured labled by these three. Note that R is case sensitive#
+# Run this code to see what you dropped.  You have to add new commands as you add new variables.#
+dropper<-Callie1==TRUE | Callie2 == TRUE | Callie3==TRUE#
+# Use this command to see how many are being dropped.  The numebr of "TRUE" values is the number being dropped#
+table(dropper)
+Callie4<-with(newdata, Pacshort="Mike Gravel for President 2008") # Getting rid of all of these observations since not for congress#
+#
+# Run this code to see what you dropped.  You have to add new commands as you add new variables.#
+dropper<-Callie1==TRUE | Callie2 == TRUE | Callie3==TRUE#
+# Use this command to see how many are being dropped.  The numebr of "TRUE" values is the number being dropped#
+table(dropper)
+Callie4<-with(newdata, Pacshort=="Mike Gravel for President 2008") # Getting rid of all of these observations since not for congress#
+#
+# Run this code to see what you dropped.  You have to add new commands as you add new variables.#
+dropper<-Callie1==TRUE | Callie2 == TRUE | Callie3==TRUE#
+# Use this command to see how many are being dropped.  The numebr of "TRUE" values is the number being dropped#
+table(dropper)
+Run this code to see what you dropped.  You have to add new commands as you add new variables.#
+dropper<-Callie1==TRUE | Callie2 == TRUE | Callie3==TRUE | Callie4==TRUE#
+# Use this command to see how many are being dropped.  The numebr of "TRUE" values is the number being dropped#
+table(dropper)
+Callie1<-with(newdata, EntType=="PTY" | EntType=="CCM") # I am dropping these because they indicate party committes or Candidate committee expenditures.#
+Callie2<-with(newdata,  Recipcode=="PI" | Recipcode=="PB") # I am dropping these because this is  PAC not a candidate spending the money#
+#
+Callie3<-with(newdata, Descrip=="Office Supplies" | Descrip=="Travel Expenses" | Descrip=="TRAVEL EXPENSES" | Descrip=="Airfare" | Descrip=="airfare")#
+# Getting rid of expenditured labled by these three. Note that R is case sensitive#
+Callie4<-with(newdata, Pacshort=="Mike Gravel for President 2008") # Getting rid of all of these observations since not for congress#
+#
+# Run this code to see what you dropped.  You have to add new commands as you add new variables.#
+dropper<-Callie1==TRUE | Callie2 == TRUE | Callie3==TRUE | Callie4==TRUE#
+# Use this command to see how many are being dropped.  The numebr of "TRUE" values is the number being dropped#
+table(dropper)
+head(newdata)
+In general, you are looking for criteria that will drop a *lot* of observations.  Shoot for 1,000 ... but at least 100.#
+# In the end, some of this may need to be cleaned by hand, but maybe not all of it.  We just need to make this manageable for some later tasks#
+#
+Callie1<-with(newdata, EntType=="PTY" | EntType=="CCM") # I am dropping these because they indicate party committes or Candidate committee expenditures.#
+Callie2<-with(newdata,  Recipcode=="PI" | Recipcode=="PB") # I am dropping these because this is  PAC not a candidate spending the money#
+#
+Callie3<-with(newdata, Descrip=="Office Supplies" | Descrip=="Travel Expenses" | Descrip=="TRAVEL EXPENSES" | 						Descrip=="Airfare" | Descrip=="airfare")#
+# Getting rid of expenditured labled by these Descriptions. Note that R is case sensitive#
+Callie4<-with(newdata, Pacshort=="Mike Gravel for President 2008") # Getting rid of all of these observations since not for congress#
+#
+Callie5<-with(newdata, CRPRecipname=="Verizon" | CRPRecipname=="AT&T")#
+# Run this code to see what you dropped.  You have to add new commands as you add new variables.#
+dropper<-Callie1==TRUE | Callie2 == TRUE | Callie3==TRUE | Callie4==TRUE | Callie5==TRUE#
+# Use this command to see how many are being dropped.  The numebr of "TRUE" values is the number being dropped#
+table(dropper)
+This command writes you a new file you can look at#
+write.csv(newdata[dropper==FALSE,], file="/Users/jacobmontgomery/Dropbox/ConsultantCheck/CleanedExpends.csv", row.names=FALSE)
+?with
+?which
+?sweep
+?density
+?par
+?library
+getwd()
+tmp <- installed.packages()
+installedpkgs <- as.vector(tmp[is.na(tmp[,"Priority"]), 1])
+save(installedpkgs, file="installed_old.rda")
+?show
+?lockBinding
+?standardGeneric
+?setPrototype
+?setValidty
+?setValidity
+?setRepresentation
+?setValidity
+?representation
+?grep
+help(grep)
+?rpois
+library(Rcmdr)
+qlogis(1)
+qlogis(.99)
+1+qlogis(.99)
+(1+qlogis(.99))
+(1+qlogis(.99))^
+2
+(1+qlogis(.99))^2
+dlogis((1+qlogis(.99))^2)
+dlogis(qlogis(.5))
+plogis(qlogis(.5))
+?rug
+?ensembleBMAnormal
+library(ensembleBMA)
+?ensembleBMAnormal
+my.E.data
+?ensembleData
+100/800
+100*.176
+one<-100*.301#
+two<-100*.176#
+three<-100*.125#
+four<-100*.097#
+five<-100*.079#
+six<-100*.067#
+seven<-100*.058#
+eight<-.0512#
+nine<-.046#
+total<-one+two+three+four+five+six+seven+eight+nine#
+one/total
+two/total
+?duplicated
+pnorm(.01)
+qnorm(.01)
+pnorm(2.17)
+1-pnorm(2.17)
+x<-seq(1, 100, 1)#
+y<-2+x*3+rnorm(100)#
+model1<-lm(y~x)#
+plot(residuals(model1), x)
+plot(residuals(model1)~x)
+plot(x, residuals(model1))
+1-.354
+(1-.354)*.354
+()(1-.354)*.354)*(243+86)
+((1-.354)*.354)*(243+86)
+sqrt(.354*(1-.354)/(243+86))
+sqrt(.354*(1-.354)/(243+86))*2
+?array
+library(tensor)
+library(EBMAforecast)
+dem(EBMAforecast)
+demo(EBMAforecast)
+Variable1<-runif(100)
+Variable2<-runif(100)
+exampleDataset<-cbind(Variable1, Variable2)
+str(exampleDataset)
+setwd("~/Drobox/DevTools Paper/NonSweave/S3 Example/squaresPack/data")
+setwd("~/Drobox/DevTools Paper/NonSweave/")
+setwd("~/Drobox/")
+getwd()
+setwd("~/")
+getwd()
+setwd("~/Dropbox")
+setwd("~/Dropbox/DevTools Paper")
+setwd("~/Dropbox/DevTools Paper/NonSweave")
+setwd("~/Dropbox/DevTools Paper/NonSweave/S3 Example/")
+setwd("~/Dropbox/DevTools Paper/NonSweave/S3 Example/SquaresPack")
+setwd("~/Dropbox/DevTools Paper/NonSweave/S3 Example/SquaresPack/data")
+write(file="exampleDataset.rda", exampleDataset)
