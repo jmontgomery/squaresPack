@@ -2,7 +2,7 @@
 ## Load libraries and set working directory
 library(devtools)
 library(roxygen2)
-setwd("~/Dropbox/DevTools Paper/NonSweave/S3 Example") #This will need to be changed to match your directory
+setwd("") #This will need to be changed to match your directory
 
 ## This is run once when the package structure is first created
 create(path="./squaresPack", check=FALSE)
